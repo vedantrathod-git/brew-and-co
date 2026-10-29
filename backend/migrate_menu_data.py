@@ -46,23 +46,35 @@ def run_migration():
         print(f"   Orders:       {pre_order_count}")
         print(f"   Order Items:  {pre_order_item_count}\n")
 
-        # Step 1: Verify and retire 10 legacy items
-        print("2. Retiring 10 Legacy Menu Items (setting is_available = False)...")
+        # Step 1: Verify and retire legacy items if they exist
+        print("2. Retiring Legacy Menu Items (if present, setting is_available = False)...")
+        cafe_product_names = {p["name"] for p in CAFE_PRODUCTS}
+        retired_count = 0
+        skipped_count = 0
         for item in LEGACY_ITEMS_TO_RETIRE:
             row = db.execute(
                 text("SELECT id, name, price, is_available FROM menu_items WHERE id = :id"),
                 {"id": item["id"]},
             ).fetchone()
             if not row:
-                raise RuntimeError(f"Legacy item ID {item['id']} ({item['name']}) not found!")
-            if row[1] != item["name"]:
+                print(f"   - Legacy ID {item['id']:2d}: {item['name']:<28} (Not present on fresh DB — skipping)")
+                skipped_count += 1
+                continue
+            if row[1] == item["name"]:
+                db.execute(
+                    text("UPDATE menu_items SET is_available = false WHERE id = :id"),
+                    {"id": item["id"]},
+                )
+                retired_count += 1
+                print(f"   ✓ Retired ID {item['id']:2d}: {item['name']:<28} (Price: {row[2]})")
+            elif row[1] in cafe_product_names:
+                print(f"   - ID {item['id']:2d} is café product '{row[1]}' (Rerun on fresh DB — skipping)")
+                skipped_count += 1
+                continue
+            else:
                 raise RuntimeError(f"Legacy item ID {item['id']} has name '{row[1]}', expected '{item['name']}'.")
-            
-            db.execute(
-                text("UPDATE menu_items SET is_available = false WHERE id = :id"),
-                {"id": item["id"]},
-            )
-            print(f"   ✓ Retired ID {item['id']:2d}: {item['name']:<28} (Price: {row[2]})")
+
+        print(f"   Total retired: {retired_count}, Skipped (not present / café product): {skipped_count}\n")
 
         # Step 2: Idempotently upsert 9 café categories
         print("\n3. Creating / Verifying 9 Approved Café Categories...")

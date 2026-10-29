@@ -33,7 +33,8 @@ def upgrade() -> None:
     """Safely retire legacy products, create 9 café categories, and insert 70 café items."""
     conn = op.get_bind()
 
-    # Step 1: Verify and retire 10 legacy items
+    # Step 1: Verify and retire legacy items if they exist (safe on fresh or legacy DB)
+    cafe_product_names = {p["name"] for p in CAFE_PRODUCTS}
     legacy_ids = []
     for item in LEGACY_ITEMS_TO_RETIRE:
         row = conn.execute(
@@ -41,15 +42,32 @@ def upgrade() -> None:
             {"id": item["id"]},
         ).fetchone()
         if not row:
-            raise RuntimeError(f"Expected legacy menu item ID {item['id']} ({item['name']}) not found in database.")
-        if row[1] != item["name"]:
-            raise RuntimeError(f"Legacy item ID {item['id']} has unexpected name '{row[1]}', expected '{item['name']}'.")
-        legacy_ids.append(item["id"])
+            # On a fresh database, legacy items do not exist — safely skip retirement
+            continue
+        if row[1] == item["name"]:
+            # Validated: ID and name match expected legacy item
+            legacy_ids.append(item["id"])
+        elif row[1] in cafe_product_names:
+            # On a fresh database or rerun, auto-increment assigned this ID to an approved café product
+            continue
+        else:
+            # Unexpected item exists with this ID — reject to prevent retiring the wrong product
+            raise RuntimeError(
+                f"Legacy item ID {item['id']} has unexpected name '{row[1]}', expected '{item['name']}'."
+            )
 
-    conn.execute(
-        text("UPDATE menu_items SET is_available = false WHERE id = ANY(:ids)"),
-        {"ids": legacy_ids},
-    )
+    if legacy_ids:
+        if conn.dialect.name == "postgresql":
+            conn.execute(
+                text("UPDATE menu_items SET is_available = false WHERE id = ANY(:ids)"),
+                {"ids": legacy_ids},
+            )
+        else:
+            for lid in legacy_ids:
+                conn.execute(
+                    text("UPDATE menu_items SET is_available = false WHERE id = :id"),
+                    {"id": lid},
+                )
 
     # Step 2: Idempotently upsert 9 café categories
     category_id_map = {}
@@ -60,6 +78,14 @@ def upgrade() -> None:
         ).fetchone()
         if existing:
             category_id_map[cat["name"]] = existing[0]
+            conn.execute(
+                text("""
+                    UPDATE categories
+                    SET description = :desc, updated_at = now()
+                    WHERE id = :id
+                """),
+                {"desc": cat["description"], "id": existing[0]},
+            )
         else:
             new_id = conn.execute(
                 text("""
@@ -123,32 +149,69 @@ def downgrade() -> None:
     """Revert café migration: restore legacy availability and remove café products."""
     conn = op.get_bind()
 
-    # Revert legacy items availability
+    # Revert legacy items availability only if they exist and match expected name
     for item in LEGACY_ITEMS_TO_RETIRE:
         avail = False if item["id"] == 29 else True
         conn.execute(
-            text("UPDATE menu_items SET is_available = :avail WHERE id = :id"),
-            {"avail": avail, "id": item["id"]},
+            text("UPDATE menu_items SET is_available = :avail WHERE id = :id AND name = :name"),
+            {"avail": avail, "id": item["id"], "name": item["name"]},
         )
 
     # Delete 70 café items that have not been ordered
     cafe_names = [p["name"] for p in CAFE_PRODUCTS]
-    conn.execute(
-        text("""
-            DELETE FROM menu_items
-            WHERE name = ANY(:names)
-              AND id NOT IN (SELECT DISTINCT menu_item_id FROM order_items)
-        """),
-        {"names": cafe_names},
-    )
-
-    # Delete the 9 categories if empty
     cafe_cat_names = [c["name"] for c in CAFE_CATEGORIES]
-    conn.execute(
-        text("""
-            DELETE FROM categories
-            WHERE name = ANY(:names)
-              AND id NOT IN (SELECT DISTINCT category_id FROM menu_items)
-        """),
-        {"names": cafe_cat_names},
-    )
+
+    if conn.dialect.name == "postgresql":
+        conn.execute(
+            text("""
+                DELETE FROM menu_items
+                WHERE name = ANY(:names)
+                  AND id NOT IN (SELECT DISTINCT menu_item_id FROM order_items)
+            """),
+            {"names": cafe_names},
+        )
+        # For any café items with historical order references, mark unavailable instead of deleting
+        conn.execute(
+            text("""
+                UPDATE menu_items
+                SET is_available = false
+                WHERE name = ANY(:names)
+            """),
+            {"names": cafe_names},
+        )
+        # Delete the 9 categories if empty
+        conn.execute(
+            text("""
+                DELETE FROM categories
+                WHERE name = ANY(:names)
+                  AND id NOT IN (SELECT DISTINCT category_id FROM menu_items)
+            """),
+            {"names": cafe_cat_names},
+        )
+    else:
+        for name in cafe_names:
+            conn.execute(
+                text("""
+                    DELETE FROM menu_items
+                    WHERE name = :name
+                      AND id NOT IN (SELECT DISTINCT menu_item_id FROM order_items)
+                """),
+                {"name": name},
+            )
+            conn.execute(
+                text("""
+                    UPDATE menu_items
+                    SET is_available = false
+                    WHERE name = :name
+                """),
+                {"name": name},
+            )
+        for cat_name in cafe_cat_names:
+            conn.execute(
+                text("""
+                    DELETE FROM categories
+                    WHERE name = :name
+                      AND id NOT IN (SELECT DISTINCT category_id FROM menu_items)
+                """),
+                {"name": cat_name},
+            )
