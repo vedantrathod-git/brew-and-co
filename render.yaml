@@ -1,0 +1,62 @@
+services:
+  # ---------------------------------------------------------------------------
+  # Backend API Service (FastAPI + Python)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: brew-and-co-api
+    env: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: "pip install -r requirements.txt && alembic upgrade head"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: APP_NAME
+        value: "Brew & Co. Restaurant API"
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: COOKIE_SECURE
+        value: "True"
+      - key: COOKIE_SAMESITE
+        value: "none"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: RAZORPAY_CURRENCY
+        value: "INR"
+      - key: DATABASE_POOL_SIZE
+        value: "3"
+      - key: DATABASE_MAX_OVERFLOW
+        value: "2"
+
+  # ---------------------------------------------------------------------------
+  # Frontend Static Site (React + Vite)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: brew-and-co-web
+    env: static
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
