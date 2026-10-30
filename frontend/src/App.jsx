@@ -113,9 +113,11 @@ export default function App() {
     let isMounted = true;
     getCurrentUser()
       .then((user) => {
-        if (isMounted && user) {
+        if (isMounted && user && typeof user === 'object' && user.role) {
           setCurrentUser(user);
           setActiveTab(DEFAULT_TAB_FOR_ROLE[user.role] || 'menu');
+        } else if (isMounted) {
+          setCurrentUser(null);
         }
       })
       .catch(() => {

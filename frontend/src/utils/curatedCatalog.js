@@ -11,103 +11,172 @@
  * 4. Staff POS and internal menu management retain access to the full 70 active products.
  */
 
-export const CURATED_PRODUCT_IDS = new Set([
+export const CURATED_PRODUCT_NAMES = new Set([
   // 1. Coffee & Espresso (6 items)
-  106, // Double Espresso (Doppio) ($1.91)
-  108, // Café Cortado (Gibraltar) ($2.22)
-  110, // Brew & Co. Flat White ($2.54)
-  111, // Artisanal Cappuccino ($2.43)
-  113, // Dark Mocha Supreme ($2.86)
-  115, // V60 Single-Origin Pour Over ($2.75)
+  'Double Espresso (Doppio)',
+  'Café Cortado (Gibraltar)',
+  'Brew & Co. Flat White',
+  'Artisanal Cappuccino',
+  'Dark Mocha Supreme',
+  'V60 Single-Origin Pour Over',
 
   // 2. Tea & Hot Beverages (3 items)
-  119, // Smoked Earl Grey Bergamot ($2.12)
-  121, // Ceremonial Matcha Latte ($2.86)
-  123, // Belgian Hot Chocolate (70%) ($2.75)
+  'Smoked Earl Grey Bergamot',
+  'Ceremonial Matcha Latte',
+  'Belgian Hot Chocolate (70%)',
 
   // 3. Cold Coffee & Refreshers (4 items)
-  124, // 18-Hour Kyoto Drip Cold Brew ($2.54)
-  126, // Vietnamese Iced Coffee ($2.75)
-  127, // Classic Affogato al Caffè ($2.54)
-  128, // Citrus Espresso Tonic ($2.86)
+  '18-Hour Kyoto Drip Cold Brew',
+  'Vietnamese Iced Coffee',
+  'Classic Affogato al Caffè',
+  'Citrus Espresso Tonic',
 
   // 4. Bakery & Viennoiserie (5 items)
-  132, // Classic French Butter Croissant ($1.91)
-  133, // Pain au Chocolat ($2.22)
-  134, // Almond Frangipane Croissant ($2.65)
-  135, // Pistachio Cardamom Cruffin ($2.75)
-  137, // Kalamata Olive & Rosemary Focaccia ($1.91)
+  'Classic French Butter Croissant',
+  'Pain au Chocolat',
+  'Almond Frangipane Croissant',
+  'Pistachio Cardamom Cruffin',
+  'Kalamata Olive & Rosemary Focaccia',
 
   // 5. Sandwiches & Toasties (4 items)
-  142, // Smoked Chicken & Truffle Aioli Focaccia ($3.81)
-  143, // Pesto Burrata & Roasted Pepper Sourdough ($3.60)
-  144, // Truffled Wild Mushroom & Gruyère Toastie ($3.39)
-  148, // Classic Reuben on Caraway Rye ($4.13)
+  'Smoked Chicken & Truffle Aioli Focaccia',
+  'Pesto Burrata & Roasted Pepper Sourdough',
+  'Truffled Wild Mushroom & Gruyère Toastie',
+  'Classic Reuben on Caraway Rye',
 
   // 6. Breakfast & Brunch (4 items)
-  150, // Eggs Florentine on Brioche ($3.60)
-  151, // Eggs Royale (Smoked Salmon) ($4.45)
-  153, // Shakshuka Skillet with Crumbled Feta ($3.49)
-  155, // Belgian Buttermilk Waffle Stack ($3.39)
+  'Eggs Florentine on Brioche',
+  'Eggs Royale (Smoked Salmon)',
+  'Shakshuka Skillet with Crumbled Feta',
+  'Belgian Buttermilk Waffle Stack',
 
   // 7. Salads & Light Bowls (3 items)
-  158, // Wild Grain & Roasted Beet Harvest Bowl ($3.60)
-  159, // Charred Burrata & Peach Panzanella ($3.81)
-  162, // Acai Antioxidant Smoothie Bowl ($3.70)
+  'Wild Grain & Roasted Beet Harvest Bowl',
+  'Charred Burrata & Peach Panzanella',
+  'Acai Antioxidant Smoothie Bowl',
 
   // 8. Desserts & Patisserie (4 items)
-  164, // Artisanal Espresso Tiramisu Jar ($3.07)
-  165, // Dark Chocolate Sea Salt Tart (70%) ($2.86)
-  166, // Burnt Basque Cheesecake Slice ($3.28)
-  167, // Pistachio Raspberry Opera Cake ($3.39)
+  'Artisanal Espresso Tiramisu Jar',
+  'Dark Chocolate Sea Salt Tart (70%)',
+  'Burnt Basque Cheesecake Slice',
+  'Pistachio Raspberry Opera Cake',
 
   // 9. Seasonal & Signature Specials (4 items)
-  170, // Smoked Sea Salt Caramel Latte ($2.96)
-  171, // Madagascar Vanilla Bean Shakerato ($2.86)
-  173, // Cascara Cold Brew Spritz ($2.75)
-  174, // Rose Cardamom Iced Latte ($2.96)
+  'Smoked Sea Salt Caramel Latte',
+  'Madagascar Vanilla Bean Shakerato',
+  'Cascara Cold Brew Spritz',
+  'Rose Cardamom Iced Latte',
+]);
+
+export const CURATED_PRODUCT_NAMES_NORMALIZED = new Set(
+  Array.from(CURATED_PRODUCT_NAMES).map((name) => name.trim().toLowerCase())
+);
+
+export const CURATED_PRODUCT_IDS = new Set([
+  // ── Neon / Fresh Sequence IDs (1–70 space) ────────────────────────────────
+  1, 3, 5, 6, 8, 10,
+  14, 16, 18,
+  19, 21, 22, 23,
+  27, 28, 29, 30, 32,
+  37, 38, 39, 43,
+  45, 46, 48, 50,
+  53, 54, 57,
+  59, 60, 61, 62,
+  65, 66, 68, 69,
+
+  // ── Legacy / Historical Sequence IDs (106–174 space) ──────────────────────
+  106, 108, 110, 111, 113, 115,
+  119, 121, 123,
+  124, 126, 127, 128,
+  132, 133, 134, 135, 137,
+  142, 143, 144, 148,
+  150, 151, 153, 155,
+  158, 159, 162,
+  164, 165, 166, 167,
+  170, 171, 173, 174,
 ]);
 
 /**
  * Checks whether a given product or product ID belongs to the curated customer catalog.
- * @param {number|Object} itemOrId - Product object with `id` or raw numeric ID
+ * Supports product objects (matching name or ID) and numeric/string IDs.
+ *
+ * @param {number|string|Object} itemOrId - Product object with `id` / `name` or raw ID
  * @returns {boolean}
  */
 export function isCuratedProduct(itemOrId) {
   if (!itemOrId) return false;
-  const id = typeof itemOrId === 'object' ? itemOrId.id : itemOrId;
-  return CURATED_PRODUCT_IDS.has(Number(id));
+
+  if (typeof itemOrId === 'object') {
+    if (itemOrId.id != null && CURATED_PRODUCT_IDS.has(Number(itemOrId.id))) {
+      return true;
+    }
+    if (itemOrId.name) {
+      const normalized = String(itemOrId.name).trim().toLowerCase();
+      if (CURATED_PRODUCT_NAMES_NORMALIZED.has(normalized)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  const numericId = Number(itemOrId);
+  return !Number.isNaN(numericId) && CURATED_PRODUCT_IDS.has(numericId);
 }
 
 /**
  * Filters a public menu response to the curated customer catalog.
  * Dynamically updates category item counts and excludes any category with 0 items.
  *
- * @param {Object} rawMenuData - { categories: Array, items: Array }
+ * @param {Object|Array} rawMenuData - { categories: Array, items: Array } or Array of items
  * @returns {Object} Curated { categories, items, total_categories, total_items }
  */
 export function filterCuratedMenu(rawMenuData) {
-  if (!rawMenuData || !Array.isArray(rawMenuData.items)) {
+  if (!rawMenuData) {
     return { categories: [], items: [], total_categories: 0, total_items: 0 };
   }
 
-  // 1. Filter items to only curated products
-  const curatedItems = rawMenuData.items.filter((item) => isCuratedProduct(item.id));
+  const rawItems = Array.isArray(rawMenuData.items)
+    ? rawMenuData.items
+    : Array.isArray(rawMenuData)
+    ? rawMenuData
+    : [];
+
+  // 1. Filter items to only curated products (evaluates both name and ID)
+  const curatedItems = rawItems.filter((item) => isCuratedProduct(item));
 
   // 2. Count items per category among curated products
   const categoryCounts = {};
   for (const item of curatedItems) {
-    categoryCounts[item.category_id] = (categoryCounts[item.category_id] || 0) + 1;
+    if (item.category_id != null) {
+      categoryCounts[item.category_id] = (categoryCounts[item.category_id] || 0) + 1;
+    }
   }
 
   // 3. Update categories with accurate counts and filter out empty categories
   const rawCategories = Array.isArray(rawMenuData.categories) ? rawMenuData.categories : [];
-  const activeCuratedCategories = rawCategories
-    .filter((cat) => (categoryCounts[cat.id] || 0) > 0)
-    .map((cat) => ({
-      ...cat,
-      item_count: categoryCounts[cat.id] || 0,
-    }));
+  let activeCuratedCategories = [];
+
+  if (rawCategories.length > 0) {
+    activeCuratedCategories = rawCategories
+      .filter((cat) => (categoryCounts[cat.id] || 0) > 0)
+      .map((cat) => ({
+        ...cat,
+        item_count: categoryCounts[cat.id] || 0,
+      }));
+  } else {
+    // If rawCategories wasn't provided, reconstruct category summaries from curated items
+    const catMap = new Map();
+    for (const item of curatedItems) {
+      if (item.category_id != null && !catMap.has(item.category_id)) {
+        catMap.set(item.category_id, {
+          id: item.category_id,
+          name: item.category_name || `Category ${item.category_id}`,
+          item_count: categoryCounts[item.category_id] || 0,
+        });
+      }
+    }
+    activeCuratedCategories = Array.from(catMap.values()).sort((a, b) => a.id - b.id);
+  }
 
   return {
     categories: activeCuratedCategories,

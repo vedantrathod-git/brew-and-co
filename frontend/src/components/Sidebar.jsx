@@ -209,7 +209,7 @@ export default function Sidebar({ activeTab, onSelectTab, backendStatus, current
             </div>
             <div className="user-info-text">
               <span className="user-display-name">{currentUser.full_name || currentUser.username}</span>
-              <span className={`role-badge role-${currentUser.role}`}>{currentUser.role.toUpperCase()}</span>
+              <span className={`role-badge role-${currentUser.role || 'staff'}`}>{(currentUser.role || 'staff').toUpperCase()}</span>
             </div>
             <button
               type="button"

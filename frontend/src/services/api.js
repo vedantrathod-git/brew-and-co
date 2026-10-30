@@ -3,27 +3,80 @@
  * Respects VITE_API_BASE_URL if set, or falls back to relative paths for Vite proxy.
  */
 
-const RAW_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const RAW_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  '';
 export const API_BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
 
-// In-memory token storage (synced on login and me) for clients where cookies may be restricted
+const TOKEN_STORAGE_KEY = 'brew_access_token';
+const CSRF_STORAGE_KEY = 'brew_csrf_token';
+
+// Persistent token storage with in-memory fast access for cross-origin production deployments
 let inMemoryToken = null;
 let inMemoryCsrfToken = null;
 
+try {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    inMemoryToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+    inMemoryCsrfToken = window.localStorage.getItem(CSRF_STORAGE_KEY);
+  }
+} catch {
+  // Graceful degradation when localStorage is restricted
+}
+
 export function setAuthToken(token) {
   inMemoryToken = token;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (token) {
+        window.localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      } else {
+        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      }
+    }
+  } catch {
+    // Graceful degradation
+  }
 }
 
 export function getAuthToken() {
+  if (inMemoryToken) return inMemoryToken;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      inMemoryToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // Graceful degradation
+  }
   return inMemoryToken;
 }
 
 export function setCsrfToken(token) {
   inMemoryCsrfToken = token;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (token) {
+        window.localStorage.setItem(CSRF_STORAGE_KEY, token);
+      } else {
+        window.localStorage.removeItem(CSRF_STORAGE_KEY);
+      }
+    }
+  } catch {
+    // Graceful degradation
+  }
 }
 
 export function getCsrfToken() {
   if (inMemoryCsrfToken) return inMemoryCsrfToken;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      inMemoryCsrfToken = window.localStorage.getItem(CSRF_STORAGE_KEY);
+      if (inMemoryCsrfToken) return inMemoryCsrfToken;
+    }
+  } catch {
+    // Graceful degradation
+  }
   if (typeof document !== 'undefined') {
     const match = document.cookie.match(/(?:^|;\s*)restaurant_csrf_token=([^;]+)/);
     if (match) return decodeURIComponent(match[1]);
@@ -42,9 +95,10 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
-  // Attach in-memory bearer token if present
-  if (inMemoryToken && !headers.Authorization) {
-    headers.Authorization = `Bearer ${inMemoryToken}`;
+  // Attach persistent/in-memory bearer token if present
+  const token = getAuthToken();
+  if (token && !headers.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
   }
 
   // Attach CSRF token on state-changing requests (POST, PUT, DELETE, PATCH)
@@ -77,6 +131,20 @@ async function request(path, options = {}) {
     const contentType = response.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');
     const data = isJson ? await response.json() : await response.text();
+
+    // Guard against SPA catch-all rewrites returning HTML index instead of JSON API response
+    if (
+      !isJson &&
+      typeof data === 'string' &&
+      (data.trim().startsWith('<!doctype html') || data.trim().startsWith('<html'))
+    ) {
+      const htmlError = new Error(
+        `Received HTML instead of JSON from '${path}'. Please verify the backend API URL is configured correctly.`
+      );
+      htmlError.status = response.status === 200 ? 502 : response.status;
+      htmlError.data = data;
+      throw htmlError;
+    }
 
     if (!response.ok) {
       const errorMsg =
@@ -253,7 +321,15 @@ export async function loginUser({ username, password }) {
  * Retrieve current authenticated user profile.
  */
 export async function getCurrentUser() {
-  return request('/api/auth/me');
+  try {
+    return await request('/api/auth/me');
+  } catch (err) {
+    if (err.status === 401) {
+      setAuthToken(null);
+      setCsrfToken(null);
+    }
+    throw err;
+  }
 }
 
 /**

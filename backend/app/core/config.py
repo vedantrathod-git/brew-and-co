@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> List[str]:
         """Parse comma-separated allowed origins into a list for CORS middleware."""
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
+        return [origin.strip().rstrip("/") for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
 
     @property
     def sanitized_database_url(self) -> str:

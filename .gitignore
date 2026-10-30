@@ -52,3 +52,6 @@ Desktop.ini
 # Excluded entirely from the restaurant-pos repository.
 # ---------------------------------------------------------------------------
 campus_lost_and_found/
+.neon
+node_modules/
+.env.local
