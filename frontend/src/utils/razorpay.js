@@ -57,12 +57,14 @@ export async function openRazorpayCheckout({
     throw new Error('Razorpay SDK could not be initialized.');
   }
 
+  let isSuccessHandled = false;
+
   const options = {
     key: keyId,
     amount: amountPaise,
     currency,
     name: 'Brew & Co.',
-    description: `Dine-In Order #${orderNumber}`,
+    description: `Order #${orderNumber}`,
     image: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=128&auto=format&fit=crop&q=80',
     order_id: razorpayOrderId,
     prefill: {
@@ -73,10 +75,13 @@ export async function openRazorpayCheckout({
     },
     modal: {
       ondismiss: () => {
-        if (onDismiss) onDismiss(new Error('Payment checkout was closed or cancelled by customer.'));
+        if (!isSuccessHandled && onDismiss) {
+          onDismiss(new Error('Payment checkout was closed or cancelled by customer.'));
+        }
       },
     },
     handler: (response) => {
+      isSuccessHandled = true;
       if (onSuccess) {
         onSuccess({
           razorpay_order_id: response.razorpay_order_id,
@@ -89,7 +94,7 @@ export async function openRazorpayCheckout({
 
   const rzp = new window.Razorpay(options);
   rzp.on('payment.failed', (response) => {
-    if (onDismiss) {
+    if (!isSuccessHandled && onDismiss) {
       const errDetail = response.error?.description || 'Payment was declined or failed.';
       onDismiss(new Error(errDetail));
     }

@@ -8,10 +8,15 @@ from app.core.config import settings
 logger = logging.getLogger("brew_and_co.payments")
 
 
+def _clean_credential(val: Optional[str]) -> str:
+    """Normalize credential string by stripping whitespace and surrounding quotes."""
+    return (val or "").strip().strip("\"'")
+
+
 def is_placeholder_credentials() -> bool:
     """Return True if Razorpay credentials are unset, development placeholders, or malformed."""
-    key_id = (settings.RAZORPAY_KEY_ID or "").strip()
-    key_secret = (settings.RAZORPAY_KEY_SECRET or "").strip()
+    key_id = _clean_credential(settings.RAZORPAY_KEY_ID)
+    key_secret = _clean_credential(settings.RAZORPAY_KEY_SECRET)
     if not key_id or not key_secret:
         return True
     for marker in ("placeholder", "your_", "example", "changeme", "xxx"):
@@ -20,7 +25,7 @@ def is_placeholder_credentials() -> bool:
     # Real keys start with 'rzp_test_' (or 'rzp_live_')
     if not (key_id.startswith("rzp_test_") or key_id.startswith("rzp_live_")):
         return True
-    # Test key ID is standard 23 chars (rzp_test_ + 14 alphanumeric), at least 20
+    # Test key ID is standard 22-23 chars (rzp_test_ + 14 alphanumeric), at least 20
     if len(key_id) < 20:
         return True
     # Razorpay key secrets are 24-character alphanumeric strings
@@ -31,7 +36,9 @@ def is_placeholder_credentials() -> bool:
 
 def get_razorpay_client() -> razorpay.Client:
     """Initialize official Razorpay SDK client."""
-    return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    key_id = _clean_credential(settings.RAZORPAY_KEY_ID)
+    key_secret = _clean_credential(settings.RAZORPAY_KEY_SECRET)
+    return razorpay.Client(auth=(key_id, key_secret))
 
 
 def create_provider_order(
@@ -55,12 +62,19 @@ def create_provider_order(
             "to backend/.env — obtain them from Settings → API Keys in the Razorpay Dashboard."
         )
 
+    # Sanitize notes so all keys are strings and None values are excluded
+    clean_notes = {
+        str(k): (v if isinstance(v, (int, float, str)) else str(v))
+        for k, v in (notes or {}).items()
+        if v is not None and str(v).strip()
+    }
+
     client = get_razorpay_client()
     order_data = {
         "amount": amount_paise,
         "currency": currency,
         "receipt": receipt,
-        "notes": notes or {},
+        "notes": clean_notes,
         "payment_capture": 1,  # Auto-capture on authorization
     }
     try:
@@ -91,7 +105,7 @@ def verify_payment_signature(
     if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
         return False
 
-    secret = settings.RAZORPAY_KEY_SECRET or ""
+    secret = _clean_credential(settings.RAZORPAY_KEY_SECRET)
     message = f"{razorpay_order_id}|{razorpay_payment_id}"
     expected_signature = hmac.new(
         secret.encode("utf-8"),
@@ -113,7 +127,7 @@ def verify_webhook_signature(
     if not raw_body or not signature:
         return False
 
-    secret = settings.RAZORPAY_WEBHOOK_SECRET or ""
+    secret = _clean_credential(settings.RAZORPAY_WEBHOOK_SECRET)
     expected_signature = hmac.new(
         secret.encode("utf-8"),
         raw_body,

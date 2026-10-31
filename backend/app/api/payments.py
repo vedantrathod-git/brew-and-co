@@ -41,8 +41,9 @@ def get_public_payment_config():
     message instead of attempting to open Razorpay Checkout.
     """
     configured = not is_placeholder_credentials()
+    clean_key_id = (settings.RAZORPAY_KEY_ID or "").strip().strip("\"'")
     return PaymentConfigResponse(
-        key_id=settings.RAZORPAY_KEY_ID,
+        key_id=clean_key_id,
         currency=settings.RAZORPAY_CURRENCY,
         razorpay_configured=configured,
     )
@@ -121,6 +122,8 @@ def create_guest_payment_order(
         .first()
     )
 
+    clean_key_id = (settings.RAZORPAY_KEY_ID or "").strip().strip("\"'")
+
     if (
         existing_payment
         and existing_payment.provider_order_id
@@ -132,7 +135,7 @@ def create_guest_payment_order(
             amount_paise=existing_payment.amount_paise,
             amount=existing_payment.amount,
             currency=existing_payment.currency,
-            key_id=settings.RAZORPAY_KEY_ID,
+            key_id=clean_key_id,
             order_number=order.order_number,
             payment_reference=existing_payment.payment_reference,
         )
@@ -177,7 +180,7 @@ def create_guest_payment_order(
         amount_paise=amount_paise,
         amount=order.total,
         currency=currency,
-        key_id=settings.RAZORPAY_KEY_ID,
+        key_id=clean_key_id,
         order_number=order.order_number,
         payment_reference=ref,
     )
