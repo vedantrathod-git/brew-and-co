@@ -5051,6 +5051,72 @@ html, body {
   border-color: var(--brew-sage);
 }
 
+/* ── Customer Product Card Skeleton ─────────────────────────────────────── */
+.customer-product-card-skeleton {
+  cursor: default;
+  pointer-events: none;
+  background-color: #FFFFFF;
+}
+
+.customer-product-card-skeleton:hover {
+  transform: none;
+  box-shadow: var(--shadow-card);
+  border-color: #E8E1D5;
+}
+
+.skeleton-media-box {
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  background-color: #F8F5EE;
+  overflow: hidden;
+  position: relative;
+}
+
+.skeleton-media {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.skeleton-cat-badge {
+  width: 72px;
+  height: 12px;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-btn {
+  width: 92px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+}
+
+.category-pill.skeleton-pill-box {
+  border-color: #E8E1D5;
+  background: #FFFFFF;
+  cursor: default;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skeleton-pill-box .skeleton-line {
+  border-radius: var(--radius-pill);
+}
+
+.skeleton-meta-title {
+  width: 140px;
+  height: 24px;
+  display: inline-block;
+  margin-bottom: 0.25rem;
+}
+
+.skeleton-meta-count {
+  width: 110px;
+  height: 16px;
+  display: inline-block;
+}
+
 /* ── Product Detail Modal ────────────────────────────────────────────────── */
 .product-modal-backdrop {
   position: fixed;

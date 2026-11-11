@@ -178,22 +178,113 @@ export async function getDbHealth() {
   return request('/health/db');
 }
 
+const MENU_CACHE_STORAGE_KEY = 'brew_public_menu_cache';
+const MENU_CACHE_TTL_MS = 60 * 1000; // 60 seconds (aligned with backend 60s cache TTL)
+
+let inMemoryMenuCache = null;
+let inMemoryMenuCacheTime = 0;
+let inflightDefaultMenuPromise = null;
+
+// Hydrate menu cache from sessionStorage on client load
+try {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    const stored = window.sessionStorage.getItem(MENU_CACHE_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && parsed.data && (Date.now() - parsed.timestamp < MENU_CACHE_TTL_MS * 2)) {
+        inMemoryMenuCache = parsed.data;
+        inMemoryMenuCacheTime = parsed.timestamp;
+      }
+    }
+  }
+} catch {
+  // Graceful degradation when sessionStorage is unavailable
+}
+
+/**
+ * Synchronously retrieve preloaded/cached public menu if available.
+ * Enables instantaneous zero-delay first-frame rendering on /menu.
+ */
+export function getCachedPublicMenu() {
+  if (inMemoryMenuCache && (Date.now() - inMemoryMenuCacheTime < MENU_CACHE_TTL_MS * 2)) {
+    return inMemoryMenuCache;
+  }
+  return null;
+}
+
 /**
  * Public Menu API endpoint (Unauthenticated customer storefront)
+ * Implements client-side caching with HTTP cache-busting on forceRefresh
+ * and promise deduplication for concurrent callers.
  * @param {Object} [params] - Optional query parameters
  * @param {number} [params.categoryId] - Filter by category ID
  * @param {string} [params.search] - Search by item name or description
+ * @param {boolean} [params.forceRefresh] - Bypass cache and force network request
  */
-export async function getPublicMenu({ categoryId, search } = {}) {
-  const searchParams = new URLSearchParams();
-  if (categoryId !== undefined && categoryId !== null && categoryId !== '') {
-    searchParams.append('category_id', categoryId);
+export async function getPublicMenu({ categoryId, search, forceRefresh = false } = {}) {
+  const isDefaultFetch = !categoryId && (!search || !search.trim());
+
+  // Return cached menu immediately when available and fresh
+  if (isDefaultFetch && !forceRefresh && inMemoryMenuCache && (Date.now() - inMemoryMenuCacheTime < MENU_CACHE_TTL_MS)) {
+    return inMemoryMenuCache;
   }
-  if (search && search.trim()) {
-    searchParams.append('search', search.trim());
+
+  // Deduplicate concurrent default in-flight requests to prevent duplicate network calls
+  if (isDefaultFetch && !forceRefresh && inflightDefaultMenuPromise) {
+    return await inflightDefaultMenuPromise;
   }
-  const queryString = searchParams.toString();
-  return request(`/api/public/menu${queryString ? `?${queryString}` : ''}`);
+
+  const fetchPromise = (async () => {
+    const searchParams = new URLSearchParams();
+    if (categoryId !== undefined && categoryId !== null && categoryId !== '') {
+      searchParams.append('category_id', categoryId);
+    }
+    if (search && search.trim()) {
+      searchParams.append('search', search.trim());
+    }
+
+    // Force network fetch and bypass browser/proxy HTTP caches when forceRefresh is requested
+    const requestOptions = {};
+    if (forceRefresh) {
+      searchParams.append('_t', Date.now().toString());
+      requestOptions.cache = 'no-store';
+      requestOptions.headers = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+      };
+    }
+
+    const queryString = searchParams.toString();
+    const data = await request(`/api/public/menu${queryString ? `?${queryString}` : ''}`, requestOptions);
+
+    if (isDefaultFetch && data && Array.isArray(data.items)) {
+      inMemoryMenuCache = data;
+      inMemoryMenuCacheTime = Date.now();
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.setItem(
+            MENU_CACHE_STORAGE_KEY,
+            JSON.stringify({ timestamp: inMemoryMenuCacheTime, data })
+          );
+        }
+      } catch {
+        // Graceful degradation
+      }
+    }
+
+    return data;
+  })();
+
+  if (isDefaultFetch && !forceRefresh) {
+    inflightDefaultMenuPromise = fetchPromise;
+    try {
+      return await fetchPromise;
+    } finally {
+      inflightDefaultMenuPromise = null;
+    }
+  }
+
+  return await fetchPromise;
 }
 
 /**

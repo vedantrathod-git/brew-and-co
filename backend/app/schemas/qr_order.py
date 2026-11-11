@@ -11,6 +11,7 @@ class QRTokenResponse(BaseModel):
     table_number: str
     qr_token: str
     qr_url: str
+    order_url: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

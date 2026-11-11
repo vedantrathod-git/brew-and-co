@@ -135,10 +135,11 @@ export default function TablesPage({ currentUser }) {
   };
 
   const handleCopyURL = () => {
-    if (!qrData?.order_url) return;
-    const fullUrl = qrData.order_url.startsWith('http')
-      ? qrData.order_url
-      : `${window.location.origin}${qrData.order_url}`;
+    const rawUrl = qrData?.order_url || qrData?.qr_url;
+    if (!rawUrl) return;
+    const fullUrl = rawUrl.startsWith('http')
+      ? rawUrl
+      : `${window.location.origin}${rawUrl}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
@@ -521,9 +522,9 @@ export default function TablesPage({ currentUser }) {
                       <div className="qr-print-code-box">
                         <img
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-                            qrData.order_url.startsWith('http')
-                              ? qrData.order_url
-                              : `${window.location.origin}${qrData.order_url}`
+                            (qrData.order_url || qrData.qr_url || '').startsWith('http')
+                              ? (qrData.order_url || qrData.qr_url)
+                              : `${window.location.origin}${qrData.order_url || qrData.qr_url}`
                           )}`}
                           alt={`QR code for Table ${selectedTable.table_number}`}
                           className="qr-print-image"
@@ -549,8 +550,8 @@ export default function TablesPage({ currentUser }) {
                       )}
                       <div className="qr-mgmt-detail-row">
                         <span className="qr-mgmt-label">Order URL:</span>
-                        <span className="qr-url-text" title={qrData.order_url}>
-                          {qrData.order_url}
+                        <span className="qr-url-text" title={qrData.order_url || qrData.qr_url}>
+                          {qrData.order_url || qrData.qr_url}
                         </span>
                       </div>
                     </div>

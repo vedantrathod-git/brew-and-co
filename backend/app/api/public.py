@@ -1,8 +1,9 @@
 import hashlib
 import json
+import time
 from decimal import Decimal
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
@@ -32,6 +33,18 @@ router = APIRouter(
     tags=["Public Menu"],
 )
 
+# Lightweight in-process TTL cache for default public menu (sub-millisecond warm responses)
+_cached_public_menu: Optional[PublicMenuResponse] = None
+_cached_public_menu_time: float = 0.0
+MENU_CACHE_TTL_SECONDS: float = 60.0
+
+
+def invalidate_public_menu_cache() -> None:
+    """Invalidate server-side public menu cache when items or categories are mutated."""
+    global _cached_public_menu, _cached_public_menu_time
+    _cached_public_menu = None
+    _cached_public_menu_time = 0.0
+
 
 @router.get(
     "/menu",
@@ -42,6 +55,7 @@ router = APIRouter(
 def get_public_menu(
     category_id: Optional[int] = Query(None, description="Optional category ID filter"),
     search: Optional[str] = Query(None, description="Optional search term matching name or description"),
+    response: Response = None,
     db: Session = Depends(get_db),
 ):
     """Retrieve public café menu catalog without requiring authentication.
@@ -50,7 +64,18 @@ def get_public_menu(
     - Excludes retired legacy items.
     - Excludes empty legacy categories that have no active products.
     - Exposes customer-safe fields only (no internal audit timestamps or staff metadata).
+    - Emits Cache-Control headers with stale-while-revalidate for edge and browser acceleration.
     """
+    global _cached_public_menu, _cached_public_menu_time
+    now = time.time()
+    is_base_query = (category_id is None and (not search or not search.strip()))
+
+    if is_base_query and _cached_public_menu is not None and (now - _cached_public_menu_time) < MENU_CACHE_TTL_SECONDS:
+        if response:
+            response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
+            response.headers["X-Cache"] = "HIT"
+        return _cached_public_menu
+
     # 1. Fetch categories that contain at least one available menu item
     category_counts = (
         db.query(
@@ -109,12 +134,22 @@ def get_public_menu(
         for item in items
     ]
 
-    return PublicMenuResponse(
+    result = PublicMenuResponse(
         categories=public_categories,
         items=public_items,
         total_categories=len(public_categories),
         total_items=len(public_items),
     )
+
+    if is_base_query:
+        _cached_public_menu = result
+        _cached_public_menu_time = now
+
+    if response:
+        response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
+        response.headers["X-Cache"] = "MISS"
+
+    return result
 
 
 @router.get(

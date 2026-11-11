@@ -298,6 +298,7 @@ def generate_table_qr_token(
         table_number=table.table_number,
         qr_token=new_token,
         qr_url=qr_url,
+        order_url=qr_url,
         created_at=table.qr_token_created_at,
     )
 
@@ -335,6 +336,7 @@ def get_table_qr_token(
         table_number=table.table_number,
         qr_token=table.qr_token,
         qr_url=qr_url,
+        order_url=qr_url,
         created_at=table.qr_token_created_at,
     )
 

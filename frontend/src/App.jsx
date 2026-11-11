@@ -222,7 +222,6 @@ export default function App() {
         <CustomerLayout currentRoute={pathname} onNavigate={navigate}>
           {pathname === '/menu' ? (
             <CustomerMenuPage
-              key={`menu-${categoryParam || 'all'}`}
               initialCategoryId={categoryParam}
             />
           ) : (

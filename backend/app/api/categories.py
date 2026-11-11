@@ -51,6 +51,8 @@ def create_category(
     try:
         db.commit()
         db.refresh(new_category)
+        from app.api.public import invalidate_public_menu_cache
+        invalidate_public_menu_cache()
         return new_category
     except IntegrityError:
         db.rollback()
@@ -147,6 +149,8 @@ def update_category(
     try:
         db.commit()
         db.refresh(category)
+        from app.api.public import invalidate_public_menu_cache
+        invalidate_public_menu_cache()
         return category
     except IntegrityError:
         db.rollback()
@@ -199,6 +203,8 @@ def delete_category(
     try:
         db.delete(category)
         db.commit()
+        from app.api.public import invalidate_public_menu_cache
+        invalidate_public_menu_cache()
         return None
     except IntegrityError:
         db.rollback()

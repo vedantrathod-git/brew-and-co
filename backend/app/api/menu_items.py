@@ -66,6 +66,9 @@ def create_menu_item(
     try:
         db.commit()
         db.refresh(new_item)
+        # Invalidate public menu cache so customers see new items immediately
+        from app.api.public import invalidate_public_menu_cache
+        invalidate_public_menu_cache()
         # Eagerly attach category relationship for response serialization
         new_item.category = category
         return new_item
@@ -193,6 +196,8 @@ def update_menu_item(
     try:
         db.commit()
         db.refresh(item)
+        from app.api.public import invalidate_public_menu_cache
+        invalidate_public_menu_cache()
         item.category = target_category
         return item
     except IntegrityError:
@@ -246,6 +251,8 @@ def delete_menu_item(
     try:
         db.delete(item)
         db.commit()
+        from app.api.public import invalidate_public_menu_cache
+        invalidate_public_menu_cache()
         return None
     except IntegrityError:
         db.rollback()
